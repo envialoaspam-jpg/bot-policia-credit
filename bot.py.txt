@@ -1,0 +1,106 @@
+import os
+import random
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, 
+    ContextTypes, 
+    CommandHandler, 
+    MessageHandler, 
+    CallbackQueryHandler, 
+    filters
+)
+
+# Configuración de registros para ver errores en la consola
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+# Lista completa de frases sarcásticas en 3ª persona
+FRASES_RESPUESTA = [
+    # --- Referencias populares y dichos ---
+    "Más fantasma que Bollino. A ese no se lo cree ni su abuela.",
+    "Esto con la tita Merche no pasaba. Menuda fantasmada se acaba de marcar.",
+    "Qué se va a haber subido ahí, si lo más lejos que ha ido es a Cuca Park.",
+    "Tú no te has subido ahí ni en sueños.",
+    "A Cuca de Cuca Park le encantan sus mentiras.",
+    "A ese le pones un peralte y llama a la tita Merche llorando.",
+    "Más cuento que los hermanos Grimm y más fantasma que Bollino juntos.",
+    "Si la tita Merche levantara la cabeza y viera este recuento inventado...",
+
+    # --- Parques Nacionales ---
+    "Qué va a haber subido a eso, si en Shambhala se quedó abajo cuidando las mochilas.",
+    "Lo más fuerte que ha probado es el Stampida y salió pidiendo la baja por latigazo.",
+    "Decir que ha subido ahí es como decir que Furius Baco arranca suave.",
+    "Se mareó en las tazas de Warner y nos quiere vender que ha estado en esa bestia.",
+    "Con suerte ha ido a Terra Mítica y le dio miedo el Titánide.",
+    "Su mayor hito fue armarse de valor para subir a la Abismo en el Parque de Atracciones de Madrid.",
+    "Se piensa que subir al Tren de la Mina de PortAventura lo convierte en un coaster-head extremo.",
+    "Se subió al Coaster-Express, gritó como si no hubiera un mañana y no ha vuelto a pisar un parque.",
+
+    # --- Parques e Coasters Internacionales ---
+    "Ese no ha visto una RMC ni en foto de portada.",
+    "¿Ese en Zadra de Energylandia? Si se desmaya solo de ver el drop desde el parking.",
+    "Dice que ha probado Toutatis en Parc Astérix, pero seguro que se quedó en la zona de fotos.",
+    "¿Subirse a Voltron en Europa-Park? Si a ese le metes un launch helicoidal y sale pidiendo confesión.",
+    "A ese lo pones en la cola de Taron en Phantasialand y se da la vuelta antes de llegar al pre-show.",
+    "Menos lobos, que en Efteling se asustó con los árboles parlantes del Bosque de Cuentos.",
+    "Decir que ha volado a Reino Unido para subir a Nemesis Reborn en Alton Towers... ni él se lo cree.",
+    "Cree que por ver el POV en YouTube de Kingda Ka ya cuenta como credit verificado.",
+    "Ese credit en una RMC tiene menos validez que un billete de tres euros.",
+    "A ese le dices que Hyperia en Thorpe Park tiene airtime y busca un refugio nuclear.",
+
+    # --- Sarcasmo de intensidad y física de coasters ---
+    "Se cree que un powered coaster en la feria del pueblo cuenta en el expediente.",
+    "Le dan 2G de fuerza lateral y se le desconfigura el DNI.",
+    "Ese no aguanta un launch hidráulico ni aunque le paguen el viaje.",
+    "Tiene el certificado de 'fantasma del año' otorgado por la Policía del Credit.",
+    "Confunde un alpine coaster en la sierra con una hypercoaster de 100 metros.",
+    "Decir que ha pisado esa vía es como decir que ha estado paseando por la Luna.",
+    "Ese no ha sentido un airtime negativo en su vida, solo el susto al ver el precio de la entrada.",
+    "Se montó en el tren parado en la estación para la foto y ya dice que la ha completado.",
+    "Está a dos mentiras de contar las escaleras mecánicas del centro comercial como credit.",
+    "Cero pruebas, cero fotos en el On-Ride y cien por ciento de fantasmada.",
+    "Investigación cerrada: no ha pisado esa atracción ni como transeúnte."
+]
+
+async def enviar_pregunta_inicial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    mensaje = "Dime a quién quieres que investigue y si el credit que dice es lícito."
+    if update.message:
+        await update.message.reply_text(mensaje)
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(mensaje)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await enviar_pregunta_inicial(update, context)
+
+async def responder_e_investigar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    frase = random.choice(FRASES_RESPUESTA)
+    keyboard = [
+        [InlineKeyboardButton("🔍 Investigar a otra persona", callback_data="investigar_otro")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(frase, reply_markup=reply_markup)
+
+async def boton_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "investigar_otro":
+        await enviar_pregunta_inicial(update, context)
+
+if __name__ == '__main__':
+    # Obtiene el TOKEN de la variable de entorno de Render por seguridad
+    TOKEN = os.environ.get("BOT_TOKEN")
+    
+    if not TOKEN:
+        raise ValueError("No se ha encontrado la variable BOT_TOKEN.")
+        
+    app = ApplicationBuilder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder_e_investigar))
+    app.add_handler(CallbackQueryHandler(boton_callback))
+    
+    print("Policía del Credit online y patrullando...")
+    app.run_polling()
